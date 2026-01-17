@@ -40,11 +40,10 @@ function getWagmiConfig() {
     config = getDefaultConfig({
       appName: 'latin-realstate',
       projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-      chains: [celo, celoAlfajores, celoSepolia],
+      chains: [celo, celoSepolia],
       transports: {
         [celo.id]: http(),
-        [celoAlfajores.id]: http(),
-        [celoSepolia.id]: http(),
+        [celoSepolia.id]: http()
       },
       ssr: true,
     })
@@ -60,29 +59,36 @@ const queryClient = new QueryClient({
   },
 })
 
-function WalletProviderInner({ children }: { children: React.ReactNode }) {
+
+
+import { useAccount } from 'wagmi'
+import { loginOrRegister } from '@/app/actions/auth'
+
+function AuthListener() {
+  const { address, isConnected } = useAccount()
+
+  useEffect(() => {
+    if (isConnected && address) {
+      loginOrRegister(address).then((result) => {
+        if (result.success) {
+          console.log('User authenticated:', result.user)
+        }
+      })
+    }
+  }, [address, isConnected])
+
+  return null
+}
+
+export function WalletProvider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={getWagmiConfig()}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
+          <AuthListener />
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   )
-}
-
-export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Show children without wallet functionality during SSR
-  if (!mounted) {
-    return <>{children}</>
-  }
-
-  return <WalletProviderInner>{children}</WalletProviderInner>
 }

@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+
+enum Role {
+  USER
+  AGENT
+  ADMIN
+}
+
+// User Profile (linked to Wallet)
+model User {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique // The link to on-chain identity
+  email         String?  @unique
+  name          String?
+  role          Role     @default(USER)
+  properties    Property[]
+  bookings      Booking[]  @relation("UserBookings")
+  agentBookings Booking[]  @relation("AgentBookings")
+  
+  // Chat relations
+  conversations Conversation[]
+  messages      Message[]
+
+  createdAt     DateTime @default(now())
+}
+
+// Property Metadata (The "Listing")
+model Property {
+  id            String   @id @default(uuid())
+  blockchainId  Int?     @unique // Token ID on Celo
+  title         String
+  description   String
+  location      String
+  lat           Float?
+  lng           Float?
+  price         Decimal  // Display price (synced from chain or oracle)
+  images        String[] // URLs to Supabase Storage or IPFS
+  features      Json?
+  ownerId       String
+  owner         User     @relation(fields: [ownerId], references: [id])
+  status        String   // DRAFT, LISTED, SOLD
+  bookings      Booking[]
+  reports       Report[]
+  createdAt     DateTime @default(now())
+}
+
+model Booking {
+  id            String   @id @default(uuid())
+  propertyId    String
+  property      Property @relation(fields: [propertyId], references: [id])
+  userId        String
+  user          User     @relation("UserBookings", fields: [userId], references: [id])
+  agentId       String
+  agent         User     @relation("AgentBookings", fields: [agentId], references: [id])
+  scheduledAt   DateTime
+  status        String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  createdAt     DateTime @default(now())
+}
+
+model Report {
+  id            String   @id @default(uuid())
+  propertyId    String
+  property      Property @relation(fields: [propertyId], references: [id])
+  type          String   // AMENITIES, MARKET_ANALYSIS
+  content       Json
+  createdAt     DateTime @default(now())
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  participants User[]
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String
+  createdAt      DateTime     @default(now())
+  read           Boolean      @default(false)
+}
+

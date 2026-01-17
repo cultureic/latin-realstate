@@ -1,2 +1,6 @@
 packages:
   - "apps/*"
+
+# For pnpm v7+
+settings:
+  ignore-workspace-root-check: true
